@@ -5,14 +5,103 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Client</title>
+  <style>
+    #logs {
+      width: 500px;
+      background-color: #ebebeb;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    #logs .title {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    #logs .row {
+      padding-left: 10px;
+      margin-top: 5px;
+    }
+  </style>
 </head>
 <body>
+  <button id="messageBtn">发送Hello</button>
+  <button id="exitBtn">退出房间</button>
+  <div id="logs">
+    <div class="title">logs</div>
+  </div>
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    const currentRoom = 'room1'
+    const currentUser = `user${Math.round(Math.random() * 10)}`
+    const currentMessage = `Hello, I am ${currentUser}`
+    const logsEl = document.getElementById('logs')
+    let rowCount = 0
+    const output = msg => {
+      const msgRow = document.createElement('div')
+      msgRow.className = 'row'
+      msgRow.style.color = rowCount % 2 === 0 ? 'gray' : '#6f6ff5'
+      msgRow.innerText = msg
+      logsEl.appendChild(msgRow)
+      rowCount++
+    }
+    const SIGNALS = {
+      enter: 'enter',
+      entered: 'entered',
+      exit: 'exit',
+      exited: 'exited',
+      full: 'full',
+      message: 'message',
+      otherEntered: 'other-entered',
+      otherExited: 'other-exited'
+    }
+    output(`current room: ${currentRoom}`)
+    output(`current user: ${currentUser}`)
     const socket = io('http://localhost:3000')
-    socket.on('message', res => {
-      document.write(res)
-      socket.emit('message', 'message from client')
+    socket.on("connect", () => {
+      // 已进入房间
+      socket.on(SIGNALS.entered, room => {
+        output(`entered ${room}`)
+      })
+
+      // 已退出房间
+      socket.on(SIGNALS.exited, room => {
+        output(`exited ${room}`)
+      })
+
+      // 房间满员
+      socket.on(SIGNALS.full, room => {
+        output(`${room} is already full`)
+      })
+
+      // 其他用户进入
+      socket.on(SIGNALS.otherEntered, user => {
+        output(`${user} has entered`)
+      })
+
+      // 其他用户退出
+      socket.on(SIGNALS.otherExited, user => {
+        output(`${user} has been left`)
+      })
+
+      // 接收message
+      socket.on(SIGNALS.message, ({ from, msg }) => {
+        output(`get message from ${from}: ${msg}`)
+      })
+
+      // 进入房间
+      socket.emit(SIGNALS.enter, currentRoom, currentUser)
+
+      // 监听退出房间按钮点击事件
+      document.getElementById('exitBtn').addEventListener('click', () => {
+        //退出房间
+        socket.emit(SIGNALS.exit, currentRoom, currentUser)
+      })
+
+      // 监听发送消息按钮点击事件
+      document.getElementById('messageBtn').addEventListener('click', () => {
+        //退出房间
+        socket.emit(SIGNALS.message, currentRoom, { from: currentUser, msg: currentMessage })
+      })
     })
   </script>
 </body>
